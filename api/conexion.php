@@ -25,8 +25,8 @@ $options = [
 
 // 4. Si estamos en Render (Aiven), agregar configuración SSL obligatoria
 if (getenv('DB_HOST')) {
-    // Aiven requiere SSL. Usamos el certificado del sistema operativo del contenedor.
-    $options[PDO::MYSQL_ATTR_SSL_CA] = '/etc/ssl/certs/ca-certificates.crt';
+    // Render guarda los "Secret Files" en /etc/secrets/ (aquí estará nuestro ca.pem)
+    $options[PDO::MYSQL_ATTR_SSL_CA] = '/etc/secrets/ca.pem';
     $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false; // Para evitar problemas de validación de host
 }
 
