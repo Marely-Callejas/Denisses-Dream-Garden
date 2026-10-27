@@ -23,13 +23,22 @@ if (!$conn) {
 
 // 4. Configurar SSL si estamos en Render (Aiven lo requiere)
 if (getenv('DB_HOST')) {
-    // La ruta correcta para los Secret Files en Render es /etc/secrets/
-    mysqli_ssl_set($conn, NULL, NULL, '/etc/secrets/ca.pem', NULL, NULL);
+    // La ruta correcta para los Secret Files en Render
+    $ssl_ca = '/etc/secrets/ca.pem';
+    
+    // Verificamos que el archivo exista para no fallar silenciosamente
+    if (!file_exists($ssl_ca)) {
+        die(json_encode(["success" => false, "message" => "Error: Certificado SSL no encontrado en " . $ssl_ca]));
+    }
+    
+    // Configurar el certificado
+    mysqli_ssl_set($conn, NULL, NULL, $ssl_ca, NULL, NULL);
 }
 
-// 5. Conectar a la base de datos
-// Nota: Usamos @ para suprimir warnings y manejar el error nosotros mismos.
-$conexion_exitosa = @mysqli_real_connect($conn, $host, $user, $pass, $db, (int)$port);
+// 5. Conectar a la base de datos.
+// El último parámetro (NULL) es la clave. Aquí es donde forzamos el flag SSL.
+// Usamos MYSQLI_CLIENT_SSL para asegurar que la conexión se cifre.
+$conexion_exitosa = @mysqli_real_connect($conn, $host, $user, $pass, $db, (int)$port, NULL, MYSQLI_CLIENT_SSL);
 
 if (!$conexion_exitosa) {
     header('Content-Type: application/json');
