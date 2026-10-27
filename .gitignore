@@ -1,0 +1,11 @@
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Entornos locales
+.env
+vendor/
+node_modules/
+
+# Archivos de configuración local
+*.log
