@@ -915,6 +915,13 @@
         let chartScoreInstance = null;
 
         window.addEventListener('DOMContentLoaded', () => {
+            // Recuperar sesión si existe al recargar
+            const usuarioGuardado = sessionStorage.getItem('usuario_logueado');
+            if (usuarioGuardado) {
+                currentUser = JSON.parse(usuarioGuardado);
+                enterApp();
+            }
+
             const loginEmail = document.getElementById('login-email');
             const loginPass = document.getElementById('login-password');
             if (loginEmail) loginEmail.value = '';
@@ -1213,6 +1220,7 @@
                     throw new Error("Respuesta de API sin preguntas");
                 }
             } catch (err) {
+                // Fallback local si falla la BD
                 quizQuestions = [
                     {
                         id: 1,
@@ -1221,78 +1229,6 @@
                             { id: 1, letter: "A", text: "Maquilíshuat", correct: true },
                             { id: 2, letter: "B", text: "Bálsamo", correct: false },
                             { id: 3, letter: "C", text: "Conacaste", correct: false }
-                        ]
-                    },
-                    {
-                        id: 3,
-                        question: "¿En qué región prospera principalmente el Cafeto en suelo volcánico?",
-                        options: [
-                            { id: 4, letter: "A", text: "Occidental", correct: true },
-                            { id: 5, letter: "B", text: "Oriental", correct: false },
-                            { id: 6, letter: "C", text: "Central", correct: false }
-                        ]
-                    },
-                    {
-                        id: 4,
-                        question: "¿Qué enredadera nativa florece en clima cálido y sus botones florales son ingrediente clave en las pupusas?",
-                        options: [
-                            { id: 7, letter: "A", text: "Loroco", correct: true },
-                            { id: 8, letter: "B", text: "Pacaya", correct: false },
-                            { id: 9, letter: "C", text: "Chichipince", correct: false }
-                        ]
-                    },
-                    {
-                        id: 5,
-                        question: "¿De qué planta de la zona oriental se aprovecha tanto su fruta jugosa como su semilla o nuez?",
-                        options: [
-                            { id: 10, letter: "A", text: "Arrayán", correct: false },
-                            { id: 11, letter: "B", text: "Marañón", correct: true },
-                            { id: 12, letter: "C", text: "Nance", correct: false }
-                        ]
-                    },
-                    {
-                        id: 6,
-                        question: "¿De cuál fruto de cáscara leñosa se fabrican tradicionalmente los huacales en el campo salvadoreño?",
-                        options: [
-                            { id: 13, letter: "A", text: "Carao", correct: false },
-                            { id: 14, letter: "B", text: "Copinol", correct: false },
-                            { id: 15, letter: "C", text: "Jícaro o Morro", correct: true }
-                        ]
-                    },
-                    {
-                        id: 7,
-                        question: "¿De qué palma con espinas de las zonas cálidas salvadoreñas se extrae jugo para preparar chicha?",
-                        options: [
-                            { id: 16, letter: "A", text: "Palma Coyol", correct: true },
-                            { id: 17, letter: "B", text: "Pacaya", correct: false },
-                            { id: 18, letter: "C", text: "Izote", correct: false }
-                        ]
-                    },
-                    {
-                        id: 8,
-                        question: "¿Qué fruta pequeña y amarilla de aroma fuerte se acostumbra vender curtida en botellas de vidrio?",
-                        options: [
-                            { id: 19, letter: "A", text: "Arrayán", correct: false },
-                            { id: 20, letter: "B", text: "Marañón", correct: false },
-                            { id: 21, letter: "C", text: "Nance", correct: true }
-                        ]
-                    },
-                    {
-                        id: 9,
-                        question: "¿Qué arbusto silvestre de El Salvador se cubre de vistosas flores amarillas en forma de campana a la orilla de los caminos?",
-                        options: [
-                            { id: 22, letter: "A", text: "San Andrés", correct: true },
-                            { id: 23, letter: "B", text: "Cortéz Blanco", correct: false },
-                            { id: 24, letter: "C", text: "Hortensia", correct: false }
-                        ]
-                    },
-                    {
-                        id: 10,
-                        question: "¿De cuál fruto histórico originario de Mesoamérica se sacan las semillas para elaborar chocolate artesanal?",
-                        options: [
-                            { id: 25, letter: "A", text: "Marañón", correct: false },
-                            { id: 26, letter: "B", text: "Cacao", correct: true },
-                            { id: 27, letter: "C", text: "Cafeto", correct: false }
                         ]
                     }
                 ];
@@ -1648,6 +1584,9 @@
                     currentUser.stats = JSON.parse(localSaved);
                 }
 
+                // Guardar sesión para que no se pierda al refrescar
+                sessionStorage.setItem('usuario_logueado', JSON.stringify(currentUser));
+
                 enterApp();
             } else {
                 msg.textContent = res.message || 'Error de credenciales';
@@ -1713,6 +1652,9 @@
         function logout() {
             currentUser = null;
             closeUserDropdown();
+
+            // Borrar sesión guardada
+            sessionStorage.removeItem('usuario_logueado');
 
             document.getElementById('login-email').value = '';
             document.getElementById('login-password').value = '';
