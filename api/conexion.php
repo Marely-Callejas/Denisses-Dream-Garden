@@ -14,54 +14,37 @@ $user = getenv('DB_USER') ?: $local_user;
 $pass = getenv('DB_PASS') ?: $local_pass;
 $db   = getenv('DB_NAME') ?: $local_db;
 
-// 3. Construir el DSN (Data Source Name) para PDO
-$dsn = "mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4";
+// 3. Crear la conexión mysqli
+$conn = mysqli_init();
 
-// 4. Configurar opciones de PDO
-$options = [
-    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES   => false,
-];
+if (!$conn) {
+    die(json_encode(["success" => false, "message" => "Error al inicializar mysqli."]));
+}
 
-// 5. Si estamos en Render, agregar la configuración SSL para PDO
+// 4. Configurar SSL si estamos en Render
 if (getenv('DB_HOST')) {
     $ssl_ca = '/etc/secrets/ca.pem';
-    
     if (!file_exists($ssl_ca)) {
-        die(json_encode(["success" => false, "message" => "Error: Certificado SSL no encontrado en " . $ssl_ca]));
+        die(json_encode(["success" => false, "message" => "Error: Certificado SSL no encontrado."]));
     }
-    
-    // PDO usa estas constantes para configurar el SSL
-    $options[PDO::MYSQL_ATTR_SSL_CA] = $ssl_ca;
-    $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false; // No verificar el nombre del host
+    mysqli_ssl_set($conn, NULL, NULL, $ssl_ca, NULL, NULL);
 }
 
-// 6. Crear la conexión PDO
-try {
-    $pdo = new PDO($dsn, $user, $pass, $options);
-    
-    // 7. Crear la variable $conn (mysqli) para compatibilidad con tus otros archivos
-    // Ahora que sabemos que PDO funciona, creamos mysqli con la misma info.
-    $conn = new mysqli($host, $user, $pass, $db, (int)$port);
-    if ($conn->connect_error) {
-        throw new Exception("Error mysqli de respaldo: " . $conn->connect_error);
-    }
-    
-    // Forzar la selección de la base de datos correcta
-    if (!$conn->select_db($db)) {
-        throw new Exception("No se pudo seleccionar la base de datos: " . $db);
-    }
-    
-    $conn->set_charset("utf8mb4");
+// 5. Conectar a la base de datos (forzando SSL en Render)
+$conexion_exitosa = @mysqli_real_connect($conn, $host, $user, $pass, $db, (int)$port, NULL, MYSQLI_CLIENT_SSL);
 
-} catch (PDOException $e) {
+if (!$conexion_exitosa) {
     header('Content-Type: application/json');
-    echo json_encode(["success" => false, "message" => "Error de conexión PDO: " . $e->getMessage()]);
-    exit;
-} catch (Exception $e) {
-    header('Content-Type: application/json');
-    echo json_encode(["success" => false, "message" => "Error de conexión: " . $e->getMessage()]);
+    echo json_encode(["success" => false, "message" => "Error de conexión: " . mysqli_connect_error()]);
     exit;
 }
+
+// 6. ¡ESTA ES LA LÍNEA CLAVE QUE SOLUCIONA EL PROBLEMA!
+// Forzamos a MySQL a usar la base de datos correcta, ignorando 'defaultdb'.
+if (!$conn->query("USE `$db`")) {
+    die(json_encode(["success" => false, "message" => "No se pudo seleccionar la base de datos: " . $db]));
+}
+
+// 7. Establecer el charset
+mysqli_set_charset($conn, "utf8mb4");
 ?>
