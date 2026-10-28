@@ -26,43 +26,39 @@ $options = [
 
 // 5. Si estamos en Render, agregar la ruta del certificado SSL
 if (getenv('DB_HOST')) {
-    // La ruta correcta para los Secret Files en Render
     $ssl_ca = '/etc/secrets/ca.pem';
-    
-    // Verificamos que el archivo exista para dar un error claro si falta
     if (!file_exists($ssl_ca)) {
         die(json_encode(["success" => false, "message" => "Error: Certificado SSL no encontrado en " . $ssl_ca]));
     }
-    
-    // Configurar PDO para usar SSL
     $options[PDO::MYSQL_ATTR_SSL_CA] = $ssl_ca;
     $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
 }
 
-// 6. Crear la conexión PDO
+// 6. Crear la conexión PDO (para compatibilidad)
 try {
     $pdo = new PDO($dsn, $user, $pass, $options);
-    
-    // 7. Crear la variable $conn para compatibilidad con tus otros archivos (mysqli)
-    // y FORZAR la selección de la base de datos correcta.
+} catch (PDOException $e) {
+    header('Content-Type: application/json');
+    echo json_encode(["success" => false, "message" => "Error de conexión PDO: " . $e->getMessage()]);
+    exit;
+}
+
+// 7. Crear la conexión mysqli (la que usan tus archivos)
+try {
+    // IMPORTANTE: Pasamos $db como 4º parámetro para que intente conectar a la BD correcta
     $conn = new mysqli($host, $user, $pass, $db, (int)$port);
     if ($conn->connect_error) {
-        throw new Exception("Error mysqli de respaldo: " . $conn->connect_error);
+        throw new Exception("Error mysqli: " . $conn->connect_error);
     }
-    
-    // ¡ESTA ES LA LÍNEA CLAVE PARA SOLUCIONAR EL ERROR DE LA TABLA!
-    // Nos aseguramos de que mysqli esté usando la base de datos correcta, no 'defaultdb'
+
+    // 8. FORZAR la selección de la base de datos (por si acaso)
+    // Esto es lo que soluciona el error de 'defaultdb'
     if (!$conn->select_db($db)) {
         throw new Exception("No se pudo seleccionar la base de datos: " . $db);
     }
     
     $conn->set_charset("utf8mb4");
 
-} catch (PDOException $e) {
-    // Si PDO falla, mostramos el error exacto
-    header('Content-Type: application/json');
-    echo json_encode(["success" => false, "message" => "Error de conexión PDO: " . $e->getMessage()]);
-    exit;
 } catch (Exception $e) {
     header('Content-Type: application/json');
     echo json_encode(["success" => false, "message" => "Error de conexión: " . $e->getMessage()]);
