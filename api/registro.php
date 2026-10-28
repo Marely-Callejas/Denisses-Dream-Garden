@@ -7,16 +7,17 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, GET");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-// Usamos __DIR__ para asegurar que siempre encuentre conexion.php
+// 1. FORZAR el uso de la conexión desde conexion.php
 require_once __DIR__ . '/conexion.php';
 
-// Verificación de seguridad (si conexion.php falló, detenemos todo)
+// 2. Verificación de seguridad (si conexion.php falló, detenemos todo)
 if (!isset($conn) || $conn->connect_error) {
     echo json_encode(['success' => false, 'message' => 'Error de conexión a la base de datos.']);
     exit;
 }
 
-$conn->set_charset("utf8");
+// 3. Forzar el charset (por si acaso)
+$conn->set_charset("utf8mb4");
 
 // OBTENER LA ACCIÓN
 $action = isset($_GET['action']) ? $_GET['action'] : '';
@@ -26,10 +27,9 @@ if (empty($action) && isset($inputData['action'])) {
     $action = $inputData['action'];
 }
 
-// FUNCIÓN PARA OBTENER ESTADÍSTICAS REALES DEL USUARIO DESDE LA TABLA 'quiz'
+// FUNCIÓN PARA OBTENER ESTADÍSTICAS
 function obtenerEstadisticasUsuario($conn, $id_user) {
     $statsData = ['quizzes' => 0, 'score' => 0];
-
     $qStats = "SELECT COUNT(*) as quizzes, IFNULL(SUM(puntaje), 0) as score 
                FROM quiz 
                WHERE id_usuario = ?";
@@ -43,7 +43,6 @@ function obtenerEstadisticasUsuario($conn, $id_user) {
             $statsData['score'] = intval($rowStats['score']);
         }
     }
-
     return $statsData;
 }
 
@@ -59,7 +58,8 @@ if ($action === 'login') {
         exit;
     }
 
-    $stmt = $conn->prepare("SELECT * FROM usuario WHERE correo = ? LIMIT 1");
+    // IMPORTANTE: Usamos backticks para la tabla y columna por si hay problemas de mayúsculas
+    $stmt = $conn->prepare("SELECT * FROM `Usuario` WHERE `correo` = ? LIMIT 1");
     if ($stmt) {
         $stmt->bind_param("s", $correo);
         $stmt->execute();
@@ -68,7 +68,6 @@ if ($action === 'login') {
         if ($result && $result->num_rows > 0) {
             $user = $result->fetch_assoc();
 
-            // Detectar el nombre de la columna de contraseña (con o sin ñ)
             $passBD = '';
             if (isset($user['contrasena'])) {
                 $passBD = $user['contrasena'];
@@ -78,14 +77,10 @@ if ($action === 'login') {
 
             if ($passBD === $contrasena || password_verify($contrasena, $passBD)) {
                 $id_user = intval($user['id_usuario']);
-
                 $user['stats'] = obtenerEstadisticasUsuario($conn, $id_user);
                 unset($user['contraseña'], $user['contrasena']);
 
-                echo json_encode([
-                    'success' => true,
-                    'user' => $user
-                ]);
+                echo json_encode(['success' => true, 'user' => $user]);
                 exit;
             } else {
                 echo json_encode(['success' => false, 'message' => 'Contraseña incorrecta.']);
@@ -96,7 +91,6 @@ if ($action === 'login') {
             exit;
         }
     }
-
     echo json_encode(['success' => false, 'message' => 'Error en el servidor.']);
     exit;
 }
@@ -106,20 +100,12 @@ if ($action === 'login') {
 // -------------------------------------------------------------
 if ($action === 'get_user_stats') {
     $id_usuario = isset($_GET['id_usuario']) ? intval($_GET['id_usuario']) : 0;
-
     if ($id_usuario > 0) {
         $stats = obtenerEstadisticasUsuario($conn, $id_usuario);
-        echo json_encode([
-            'success' => true,
-            'stats' => $stats
-        ]);
+        echo json_encode(['success' => true, 'stats' => $stats]);
         exit;
     }
-
-    echo json_encode([
-        'success' => true,
-        'stats' => ['quizzes' => 0, 'score' => 0]
-    ]);
+    echo json_encode(['success' => true, 'stats' => ['quizzes' => 0, 'score' => 0]]);
     exit;
 }
 
@@ -136,8 +122,7 @@ if ($action === 'register') {
         exit;
     }
 
-    // Verificar si el correo ya existe
-    $stmtChk = $conn->prepare("SELECT id_usuario FROM usuario WHERE correo = ?");
+    $stmtChk = $conn->prepare("SELECT id_usuario FROM `Usuario` WHERE `correo` = ?");
     if ($stmtChk) {
         $stmtChk->bind_param("s", $correo);
         $stmtChk->execute();
@@ -147,9 +132,9 @@ if ($action === 'register') {
         }
     }
 
-    // Insertar nuevo usuario (con contraseña hasheada)
     $passHash = password_hash($contrasena, PASSWORD_DEFAULT);
-    $stmt = $conn->prepare("INSERT INTO usuario (nombre, correo, contrasena, rol) VALUES (?, ?, ?, 'estudiante')");
+    // Usamos `contraseña` porque así está en tu SQL original
+    $stmt = $conn->prepare("INSERT INTO `Usuario` (`nombre`, `correo`, `contraseña`, `rol`) VALUES (?, ?, ?, 'estudiante')");
     if ($stmt) {
         $stmt->bind_param("sss", $nombre, $correo, $passHash);
         if ($stmt->execute()) {
@@ -157,7 +142,6 @@ if ($action === 'register') {
             exit;
         }
     }
-
     echo json_encode(['success' => false, 'message' => 'Error al registrar el usuario en la BD.']);
     exit;
 }
@@ -169,14 +153,12 @@ if ($action === 'get_alumnos_progreso') {
     $query = "SELECT u.id_usuario, u.nombre, u.correo, 
                      COUNT(q.id_quiz) as quizzes, 
                      IFNULL(SUM(q.puntaje), 0) as puntos
-              FROM usuario u
-              LEFT JOIN quiz q ON u.id_usuario = q.id_usuario
+              FROM `Usuario` u
+              LEFT JOIN `Quiz` q ON u.id_usuario = q.id_usuario
               WHERE u.rol = 'estudiante' OR u.rol IS NULL
               GROUP BY u.id_usuario";
-
     $res = $conn->query($query);
     $alumnos = [];
-
     if ($res) {
         while ($row = $res->fetch_assoc()) {
             $alumnos[] = [
@@ -188,7 +170,6 @@ if ($action === 'get_alumnos_progreso') {
             ];
         }
     }
-
     echo json_encode(['success' => true, 'alumnos' => $alumnos]);
     exit;
 }
@@ -197,10 +178,9 @@ if ($action === 'get_alumnos_progreso') {
 // 5. GESTIÓN DE USUARIOS PARA ADMIN
 // -------------------------------------------------------------
 if ($action === 'get_todos_usuarios') {
-    $query = "SELECT id_usuario, nombre, correo, IFNULL(rol, 'estudiante') as rol FROM usuario ORDER BY id_usuario DESC";
+    $query = "SELECT id_usuario, nombre, correo, IFNULL(rol, 'estudiante') as rol FROM `Usuario` ORDER BY id_usuario DESC";
     $res = $conn->query($query);
     $usuarios = [];
-
     if ($res) {
         while ($row = $res->fetch_assoc()) {
             $usuarios[] = $row;
@@ -214,8 +194,7 @@ if ($action === 'update_rol') {
     if (isset($inputData['id_usuario'], $inputData['rol'])) {
         $id_usuario = intval($inputData['id_usuario']);
         $rol = trim($inputData['rol']);
-        
-        $stmt = $conn->prepare("UPDATE usuario SET rol = ? WHERE id_usuario = ?");
+        $stmt = $conn->prepare("UPDATE `Usuario` SET rol = ? WHERE id_usuario = ?");
         if ($stmt) {
             $stmt->bind_param("si", $rol, $id_usuario);
             if ($stmt->execute()) {
@@ -231,11 +210,8 @@ if ($action === 'update_rol') {
 if ($action === 'delete_usuario') {
     if (isset($inputData['id_usuario'])) {
         $id_usuario = intval($inputData['id_usuario']);
-        
-        // Eliminar registros relacionados primero (por posibles FK)
-        $conn->query("DELETE FROM quiz WHERE id_usuario = {$id_usuario}");
-        
-        $stmt = $conn->prepare("DELETE FROM usuario WHERE id_usuario = ?");
+        $conn->query("DELETE FROM `Quiz` WHERE id_usuario = {$id_usuario}");
+        $stmt = $conn->prepare("DELETE FROM `Usuario` WHERE id_usuario = ?");
         if ($stmt) {
             $stmt->bind_param("i", $id_usuario);
             if ($stmt->execute()) {
