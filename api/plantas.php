@@ -7,7 +7,6 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, GET");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-// Usamos __DIR__ para que siempre encuentre conexion.php sin importar desde dónde se llame
 require_once __DIR__ . '/conexion.php';
 
 if (!isset($conn) || $conn->connect_error) {
@@ -15,7 +14,7 @@ if (!isset($conn) || $conn->connect_error) {
     exit;
 }
 
-$conn->set_charset("utf8");
+$conn->set_charset("utf8mb4");
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 $rawInput = file_get_contents("php://input");
@@ -26,20 +25,20 @@ $inputData = json_decode($rawInput, true);
 // =========================================================================
 if ($action === 'add_planta') {
     if (!isset($inputData['nombre_comun'], $inputData['nombre_cientifico'])) {
-        echo json_encode(["success" => false, "message" => "Faltan datos obligatorios para registrar la planta."]);
+        echo json_encode(["success" => false, "message" => "Faltan datos obligatorios."]);
         exit;
     }
 
     $nombreComun = trim($inputData['nombre_comun']);
     $nombreCientifico = trim($inputData['nombre_cientifico']);
     $idRegion = isset($inputData['id_region']) ? (int)$inputData['id_region'] : 1;
-    $riego = isset($inputData['riego']) && !empty(trim($inputData['riego'])) ? trim($inputData['riego']) : 'Moderado';
-    $luz = isset($inputData['luz']) && !empty(trim($inputData['luz'])) ? trim($inputData['luz']) : 'Sol directo';
-    $suelo = isset($inputData['suelo']) && !empty(trim($inputData['suelo'])) ? trim($inputData['suelo']) : 'Suelo bien drenado';
+    $riego = isset($inputData['riego']) ? trim($inputData['riego']) : 'Moderado';
+    $luz = isset($inputData['luz']) ? trim($inputData['luz']) : 'Sol directo';
+    $suelo = isset($inputData['suelo']) ? trim($inputData['suelo']) : 'Suelo bien drenado';
     $cuidados = isset($inputData['cuidados']) ? trim($inputData['cuidados']) : '';
-    $imagenUrl = isset($inputData['imagen_url']) && !empty(trim($inputData['imagen_url'])) ? trim($inputData['imagen_url']) : 'img/planta_default.jpg';
+    $imagenUrl = isset($inputData['imagen_url']) ? trim($inputData['imagen_url']) : 'img/planta_default.jpg';
 
-    $stmt = $conn->prepare("INSERT INTO planta (nombre_comun, nombre_cientifico, id_region, riego, luz, suelo, cuidados, imagen_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO `Planta` (nombre_comun, nombre_cientifico, id_region, riego, luz, suelo, cuidados, imagen_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     if ($stmt) {
         $stmt->bind_param("ssisssss", $nombreComun, $nombreCientifico, $idRegion, $riego, $luz, $suelo, $cuidados, $imagenUrl);
         if ($stmt->execute()) {
@@ -47,7 +46,6 @@ if ($action === 'add_planta') {
             exit;
         }
     }
-
     echo json_encode(["success" => false, "message" => "Error SQL al insertar la planta."]);
     exit;
 }
@@ -55,9 +53,9 @@ if ($action === 'add_planta') {
 // =========================================================================
 // ACCIÓN: ACTUALIZAR PLANTA
 // =========================================================================
-if ($action === 'update_planta' || (isset($inputData['id_planta']) && !isset($_GET['action']))) {
+if ($action === 'update_planta') {
     if (!isset($inputData['id_planta'], $inputData['nombre_comun'], $inputData['nombre_cientifico'])) {
-        echo json_encode(["success" => false, "message" => "Faltan datos obligatorios para actualizar."]);
+        echo json_encode(["success" => false, "message" => "Faltan datos."]);
         exit;
     }
 
@@ -71,16 +69,15 @@ if ($action === 'update_planta' || (isset($inputData['id_planta']) && !isset($_G
     $cuidados = isset($inputData['cuidados']) ? trim($inputData['cuidados']) : '';
     $imagenUrl = isset($inputData['imagen_url']) ? trim($inputData['imagen_url']) : 'img/planta_default.jpg';
 
-    $stmt = $conn->prepare("UPDATE planta SET nombre_comun = ?, nombre_cientifico = ?, id_region = ?, riego = ?, luz = ?, suelo = ?, cuidados = ?, imagen_url = ? WHERE id_planta = ?");
+    $stmt = $conn->prepare("UPDATE `Planta` SET nombre_comun = ?, nombre_cientifico = ?, id_region = ?, riego = ?, luz = ?, suelo = ?, cuidados = ?, imagen_url = ? WHERE id_planta = ?");
     if ($stmt) {
         $stmt->bind_param("ssisssssi", $nombreComun, $nombreCientifico, $idRegion, $riego, $luz, $suelo, $cuidados, $imagenUrl, $idPlanta);
         if ($stmt->execute()) {
-            echo json_encode(["success" => true, "message" => "Planta actualizada correctamente."]);
+            echo json_encode(["success" => true, "message" => "Planta actualizada."]);
             exit;
         }
     }
-
-    echo json_encode(["success" => false, "message" => "Error al actualizar en la base de datos."]);
+    echo json_encode(["success" => false, "message" => "Error al actualizar."]);
     exit;
 }
 
@@ -90,14 +87,14 @@ if ($action === 'update_planta' || (isset($inputData['id_planta']) && !isset($_G
 if ($action === 'delete_planta') {
     if (isset($inputData['id_planta'])) {
         $idPlanta = (int)$inputData['id_planta'];
-        $conn->query("DELETE FROM planta WHERE id_planta = {$idPlanta}");
-        echo json_encode(["success" => true, "message" => "Planta eliminada correctamente."]);
+        $conn->query("DELETE FROM `Planta` WHERE id_planta = {$idPlanta}");
+        echo json_encode(["success" => true, "message" => "Planta eliminada."]);
         exit;
     }
 }
 
 // =========================================================================
-// GARANTIZAR LAS 32 PLANTAS BASE
+// GARANTIZAR LAS PLANTAS BASE
 // =========================================================================
 function asegurarPlantasBase($conn) {
     $plantasBase = [
@@ -136,7 +133,7 @@ function asegurarPlantasBase($conn) {
     ];
 
     foreach ($plantasBase as $p) {
-        $stmt = $conn->prepare("INSERT INTO planta (id_planta, nombre_comun, nombre_cientifico, id_region, riego, luz, suelo, cuidados, imagen_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE nombre_comun = VALUES(nombre_comun), nombre_cientifico = VALUES(nombre_cientifico), id_region = VALUES(id_region), riego = VALUES(riego), luz = VALUES(luz), suelo = VALUES(suelo), cuidados = VALUES(cuidados), imagen_url = VALUES(imagen_url)");
+        $stmt = $conn->prepare("INSERT INTO `Planta` (id_planta, nombre_comun, nombre_cientifico, id_region, riego, luz, suelo, cuidados, imagen_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE nombre_comun = VALUES(nombre_comun), nombre_cientifico = VALUES(nombre_cientifico), id_region = VALUES(id_region), riego = VALUES(riego), luz = VALUES(luz), suelo = VALUES(suelo), cuidados = VALUES(cuidados), imagen_url = VALUES(imagen_url)");
         if ($stmt) {
             $stmt->bind_param("ississsss", $p[0], $p[1], $p[2], $p[3], $p[4], $p[5], $p[6], $p[7], $p[8]);
             $stmt->execute();
@@ -146,6 +143,9 @@ function asegurarPlantasBase($conn) {
 
 asegurarPlantasBase($conn);
 
+// =========================================================================
+// OBTENER TODAS LAS PLANTAS
+// =========================================================================
 $query = "SELECT id_planta, nombre_comun, nombre_cientifico, id_region, riego, luz, suelo, cuidados, imagen_url,
           CASE id_region 
             WHEN 1 THEN 'Central'
@@ -153,7 +153,7 @@ $query = "SELECT id_planta, nombre_comun, nombre_cientifico, id_region, riego, l
             WHEN 3 THEN 'Oriental'
             ELSE 'Central'
           END AS region 
-          FROM planta 
+          FROM `Planta` 
           ORDER BY id_planta ASC";
 
 $res = $conn->query($query);
