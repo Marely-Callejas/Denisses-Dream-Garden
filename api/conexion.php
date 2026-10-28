@@ -14,7 +14,7 @@ $user = getenv('DB_USER') ?: $local_user;
 $pass = getenv('DB_PASS') ?: $local_pass;
 $db   = getenv('DB_NAME') ?: $local_db;
 
-// 3. Construir el DSN (Data Source Name)
+// 3. Construir el DSN (Data Source Name) para PDO
 $dsn = "mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4";
 
 // 4. Configurar opciones de PDO
@@ -43,14 +43,19 @@ if (getenv('DB_HOST')) {
 try {
     $pdo = new PDO($dsn, $user, $pass, $options);
     
-    // 7. Crear la variable $conn para compatibilidad con tus otros archivos
-    // (Tus archivos como registro.php usan $conn, así que creamos un objeto mysqli
-    //  usando la misma información para que no tengas que reescribir todo).
-    //  NOTA: Lo ideal es migrar todo a PDO, pero esto te salvará ahora.
+    // 7. Crear la variable $conn para compatibilidad con tus otros archivos (mysqli)
+    // y FORZAR la selección de la base de datos correcta.
     $conn = new mysqli($host, $user, $pass, $db, (int)$port);
     if ($conn->connect_error) {
         throw new Exception("Error mysqli de respaldo: " . $conn->connect_error);
     }
+    
+    // ¡ESTA ES LA LÍNEA CLAVE PARA SOLUCIONAR EL ERROR DE LA TABLA!
+    // Nos aseguramos de que mysqli esté usando la base de datos correcta, no 'defaultdb'
+    if (!$conn->select_db($db)) {
+        throw new Exception("No se pudo seleccionar la base de datos: " . $db);
+    }
+    
     $conn->set_charset("utf8mb4");
 
 } catch (PDOException $e) {
