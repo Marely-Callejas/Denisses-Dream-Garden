@@ -7,37 +7,72 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, GET");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-// Usamos __DIR__ para asegurar que siempre encuentre conexion.php
 require_once __DIR__ . '/conexion.php';
 
-// Verificación de seguridad
 if (!isset($conn) || $conn->connect_error) {
     echo json_encode(["success" => false, "message" => "Error de conexión con la base de datos."]);
     exit;
 }
 
-$conn->set_charset("utf8");
+$conn->set_charset("utf8mb4");
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 $rawInput = file_get_contents("php://input");
 $inputData = json_decode($rawInput, true);
 
 // =========================================================================
-// OBTENER TODAS LAS PREGUNTAS DEL QUIZ (Haciendo JOIN con Respuesta)
+// INSERTAR PREGUNTAS BASE SI LA TABLA ESTÁ VACÍA
+// =========================================================================
+$checkPreguntas = $conn->query("SELECT COUNT(*) as total FROM `Pregunta`");
+if ($checkPreguntas) {
+    $rowCount = $checkPreguntas->fetch_assoc();
+    if ($rowCount['total'] == 0) {
+        $preguntasBase = [
+            ["¿Cuál es el árbol nacional de El Salvador?", "Maquilíshuat", "Bálsamo", "Conacaste", "A"],
+            ["¿En qué región prospera principalmente el Cafeto en suelo volcánico?", "Occidental", "Oriental", "Central", "A"],
+            ["¿Qué enredadera nativa florece en clima cálido y sus botones florales son ingrediente clave en las pupusas?", "Loroco", "Pacaya", "Chichipince", "A"],
+            ["¿De qué planta de la zona oriental se aprovecha tanto su fruta jugosa como su semilla o nuez?", "Arrayán", "Marañón", "Nance", "B"],
+            ["¿De cuál fruto de cáscara leñosa se fabrican tradicionalmente los huacales en el campo salvadoreño?", "Carao", "Copinol", "Jícaro o Morro", "C"],
+            ["¿De qué palma con espinas de las zonas cálidas salvadoreñas se extrae jugo para preparar chicha?", "Palma Coyol", "Pacaya", "Izote", "A"],
+            ["¿Qué fruta pequeña y amarilla de aroma fuerte se acostumbra vender curtida en botellas de vidrio?", "Arrayán", "Marañón", "Nance", "C"],
+            ["¿Qué arbusto silvestre de El Salvador se cubre de vistosas flores amarillas en forma de campana a la orilla de los caminos?", "San Andrés", "Cortéz Blanco", "Hortensia", "A"],
+            ["¿De cuál fruto histórico originario de Mesoamérica se sacan las semillas para elaborar chocolate artesanal?", "Marañón", "Cacao", "Cafeto", "B"]
+        ];
+
+        foreach ($preguntasBase as $p) {
+            $stmtP = $conn->prepare("INSERT INTO `Pregunta` (enunciado, id_region) VALUES (?, 1)");
+            if ($stmtP) {
+                $stmtP->bind_param("s", $p[0]);
+                $stmtP->execute();
+                $idP = $conn->insert_id;
+
+                $stmtR = $conn->prepare("INSERT INTO `Respuesta` (id_pregunta, texto_respuesta, es_correcta) VALUES (?, ?, ?)");
+                if ($stmtR) {
+                    $esA = ($p[4] == 'A') ? 1 : 0;
+                    $esB = ($p[4] == 'B') ? 1 : 0;
+                    $esC = ($p[4] == 'C') ? 1 : 0;
+
+                    $stmtR->bind_param("isi", $idP, $p[1], $esA); $stmtR->execute();
+                    $stmtR->bind_param("isi", $idP, $p[2], $esB); $stmtR->execute();
+                    $stmtR->bind_param("isi", $idP, $p[3], $esC); $stmtR->execute();
+                }
+            }
+        }
+    }
+}
+
+// =========================================================================
+// OBTENER TODAS LAS PREGUNTAS DEL QUIZ
 // =========================================================================
 if ($action === 'get_preguntas' || empty($action)) {
-    // Consultamos todas las preguntas
-    $resPreguntas = $conn->query("SELECT id_pregunta, enunciado FROM pregunta ORDER BY id_pregunta ASC");
-    
+    $resPreguntas = $conn->query("SELECT id_pregunta, enunciado FROM `Pregunta` ORDER BY id_pregunta ASC");
     $preguntas = [];
 
     if ($resPreguntas && $resPreguntas->num_rows > 0) {
         while ($rowPregunta = $resPreguntas->fetch_assoc()) {
             $idPregunta = (int)$rowPregunta['id_pregunta'];
             
-            // Para cada pregunta, buscamos sus respuestas
-            $resRespuestas = $conn->query("SELECT id_respuesta, texto_respuesta, es_correcta FROM respuesta WHERE id_pregunta = {$idPregunta} ORDER BY id_respuesta ASC");
-            
+            $resRespuestas = $conn->query("SELECT id_respuesta, texto_respuesta, es_correcta FROM `Respuesta` WHERE id_pregunta = {$idPregunta} ORDER BY id_respuesta ASC");
             $opciones = [];
             $letras = ['A', 'B', 'C', 'D', 'E'];
             $contador = 0;
@@ -68,7 +103,7 @@ if ($action === 'get_preguntas' || empty($action)) {
 }
 
 // =========================================================================
-// GUARDAR PUNTAJE DEL QUIZ (Cuando el usuario termina)
+// GUARDAR PUNTAJE DEL QUIZ
 // =========================================================================
 if ($action === 'save_score' || (isset($inputData['id_usuario']) && isset($inputData['puntaje']) && !isset($_GET['action']))) {
     if (!isset($inputData['id_usuario'], $inputData['puntaje'])) {
@@ -80,8 +115,7 @@ if ($action === 'save_score' || (isset($inputData['id_usuario']) && isset($input
     $puntaje = (int)$inputData['puntaje'];
     $totalPreguntas = isset($inputData['total_preguntas']) ? (int)$inputData['total_preguntas'] : 0;
 
-    // Ajustamos el nombre de la columna según tu SQL (fecha_intento)
-    $stmt = $conn->prepare("INSERT INTO quiz (id_usuario, puntaje, total_preguntas, fecha_intento) VALUES (?, ?, ?, NOW())");
+    $stmt = $conn->prepare("INSERT INTO `Quiz` (id_usuario, puntaje, total_preguntas, fecha_intento) VALUES (?, ?, ?, NOW())");
     if ($stmt) {
         $stmt->bind_param("iii", $idUsuario, $puntaje, $totalPreguntas);
         if ($stmt->execute()) {
@@ -95,7 +129,7 @@ if ($action === 'save_score' || (isset($inputData['id_usuario']) && isset($input
 }
 
 // =========================================================================
-// AGREGAR NUEVA PREGUNTA (Admin)
+// AGREGAR NUEVA PREGUNTA
 // =========================================================================
 if ($action === 'add_pregunta') {
     if (!isset($inputData['enunciado'], $inputData['opciones'])) {
@@ -111,8 +145,7 @@ if ($action === 'add_pregunta') {
         exit;
     }
 
-    // Insertar la pregunta
-    $stmtP = $conn->prepare("INSERT INTO pregunta (enunciado, id_region) VALUES (?, 1)");
+    $stmtP = $conn->prepare("INSERT INTO `Pregunta` (enunciado, id_region) VALUES (?, 1)");
     if (!$stmtP) {
         echo json_encode(["success" => false, "message" => "Error al preparar la pregunta."]);
         exit;
@@ -126,8 +159,7 @@ if ($action === 'add_pregunta') {
 
     $idPreguntaNueva = $conn->insert_id;
 
-    // Insertar las respuestas
-    $stmtR = $conn->prepare("INSERT INTO respuesta (id_pregunta, texto_respuesta, es_correcta) VALUES (?, ?, ?)");
+    $stmtR = $conn->prepare("INSERT INTO `Respuesta` (id_pregunta, texto_respuesta, es_correcta) VALUES (?, ?, ?)");
     if ($stmtR) {
         foreach ($opciones as $opcion) {
             $texto = trim($opcion['texto']);
@@ -142,7 +174,7 @@ if ($action === 'add_pregunta') {
 }
 
 // =========================================================================
-// ACTUALIZAR PREGUNTA (Admin)
+// ACTUALIZAR PREGUNTA
 // =========================================================================
 if ($action === 'update_pregunta') {
     if (!isset($inputData['id_pregunta'], $inputData['enunciado'], $inputData['opciones'])) {
@@ -154,18 +186,15 @@ if ($action === 'update_pregunta') {
     $enunciado = trim($inputData['enunciado']);
     $opciones = $inputData['opciones'];
 
-    // Actualizar el enunciado
-    $stmtP = $conn->prepare("UPDATE pregunta SET enunciado = ? WHERE id_pregunta = ?");
+    $stmtP = $conn->prepare("UPDATE `Pregunta` SET enunciado = ? WHERE id_pregunta = ?");
     if ($stmtP) {
         $stmtP->bind_param("si", $enunciado, $idPregunta);
         $stmtP->execute();
     }
 
-    // Eliminar las respuestas anteriores
-    $conn->query("DELETE FROM respuesta WHERE id_pregunta = {$idPregunta}");
+    $conn->query("DELETE FROM `Respuesta` WHERE id_pregunta = {$idPregunta}");
 
-    // Insertar las nuevas respuestas
-    $stmtR = $conn->prepare("INSERT INTO respuesta (id_pregunta, texto_respuesta, es_correcta) VALUES (?, ?, ?)");
+    $stmtR = $conn->prepare("INSERT INTO `Respuesta` (id_pregunta, texto_respuesta, es_correcta) VALUES (?, ?, ?)");
     if ($stmtR) {
         foreach ($opciones as $opcion) {
             $texto = trim($opcion['texto']);
@@ -180,14 +209,13 @@ if ($action === 'update_pregunta') {
 }
 
 // =========================================================================
-// ELIMINAR PREGUNTA (Admin)
+// ELIMINAR PREGUNTA
 // =========================================================================
 if ($action === 'delete_pregunta') {
     if (isset($inputData['id_pregunta'])) {
         $idPregunta = (int)$inputData['id_pregunta'];
         
-        // Al eliminar la pregunta, las respuestas se eliminan por FK en cascada (según tu SQL)
-        $stmt = $conn->prepare("DELETE FROM pregunta WHERE id_pregunta = ?");
+        $stmt = $conn->prepare("DELETE FROM `Pregunta` WHERE id_pregunta = ?");
         if ($stmt) {
             $stmt->bind_param("i", $idPregunta);
             if ($stmt->execute()) {
