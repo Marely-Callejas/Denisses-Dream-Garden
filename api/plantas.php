@@ -94,57 +94,7 @@ if ($action === 'delete_planta') {
 }
 
 // =========================================================================
-// GARANTIZAR LAS PLANTAS BASE
-// =========================================================================
-function asegurarPlantasBase($conn) {
-    $plantasBase = [
-        [1, 'Conacaste', 'Enterolobium cyclocarpum', 1, 'Bajo', 'Sol directo', 'Suelo resistente', 'Árbol frondoso característico del paisaje salvadoreño.', 'img/conacaste.jpg'],
-        [2, 'Jícaro o Morro', 'Crescentia alata', 3, 'Bajo', 'Sol directo', 'Suelo arcilloso', 'Típico del clima seco oriental. De su fruto se elabora horchata y artesanías.', 'img/morro.jpg_large'],
-        [3, 'Madrecacao', 'Gliricidia sepium', 3, 'Bajo', 'Sol directo', 'Adaptable a suelos pobres', 'Abundante en el campo salvadoreño. Utilizado como sombra para el café.', 'img/madrecacao.jpg'],
-        [4, 'Marañón', 'Anacardium occidentale', 3, 'Bajo', 'Sol directo', 'Suelo arenoso / pobre', 'Cultivo emblemático oriental. Se consume su pseudofruto y semilla.', 'img/marañon.jpg'],
-        [5, 'Loroco', 'Fernaldia pandurata', 3, 'Moderado', 'Sol / Sombra', 'Suelo fértil y cálido', 'Enredadera nativa muy apreciada en la gastronomía salvadoreña.', 'img/loroco.jpg'],
-        [6, 'Coyol', 'Acrocomia aculeata', 3, 'Bajo', 'Sol directo', 'Suelo seco y pedregoso', 'Palma espinosa típica de las zonas cálidas del país.', 'img/coyol.jpg'],
-        [7, 'Nance', 'Byrsonima crassifolia', 3, 'Bajo', 'Sol directo', 'Suelo ácido y pedregoso', 'Muy común en las zonas cálidas. Fruto pequeño de aroma fuerte.', 'img/nance.jpg'],
-        [8, 'Jocote de Corona', 'Spondias purpurea', 3, 'Bajo', 'Sol directo', 'Suelo pedregoso y seco', 'Muy popular en la temporada de verano salvadoreña.', 'img/jocote.jpg'],
-        [9, 'Cortéz Blanco', 'Handroanthus chrysanthus', 3, 'Bajo', 'Sol directo', 'Suelo bien drenado', 'En temporada seca se cubre por completo de hermosas flores amarillas.', 'img/cortes blanco.jpg'],
-        [10, 'Carao', 'Cassia grandis', 3, 'Bajo', 'Sol directo', 'Suelo seco', 'Árbol oriental frondoso de abundantes flores rosadas y vaina leñosa.', 'img/carao.jpg'],
-        [11, 'Maquilíshuat', 'Tabebuia rosea', 1, 'Moderado', 'Sol directo', 'Suelo bien drenado', 'Árbol Nacional de El Salvador. Produce vistosas flores rosadas.', 'img/maquilishuat.png'],
-        [12, 'Izote', 'Yucca aloifolia', 1, 'Bajo', 'Sol directo / Sombra', 'Suelo arenoso', 'Flor Nacional de El Salvador. Muy utilizada en platillos locales.', 'img/Flor de Izote.jpg'],
-        [13, 'Copinol', 'Hymenaea courbaril', 1, 'Bajo', 'Sol directo', 'Suelo arcilloso', 'Árbol frondoso nativo con semillas comestibles encarradas en cascarón duro.', 'img/Hymenaea-courbaril.jpg'],
-        [14, 'San Andrés', 'Tecoma stans', 1, 'Moderado', 'Sol directo', 'Suelo bien drenado', 'Arbusto de bellas flores amarillas acampanadas.', 'img/San andres.webp'],
-        [15, 'Chichipince', 'Hamelia patens', 1, 'Moderado', 'Sol / Sombra parcial', 'Suelo húmedo', 'Planta medicinal nativa de flores tubulares rojas que atraen colibríes.', 'img/chichipince.jpg'],
-        [16, 'Pito', 'Erythrina berteroana', 1, 'Moderado', 'Sol directo', 'Suelo fértil', 'Árbol de flores rojas comúnmente consumidas en sopas y guisados.', 'img/arból de pitos.jpg'],
-        [17, 'Helecho Nido de Ave', 'Asplenium nidus', 1, 'Frecuente', 'Sombra / Luz filtrada', 'Rico en materia orgánica', 'Cultivado y nativo en zonas boscosas de sotobosque.', 'img/Helecho.jpg'],
-        [18, 'Barba de Viejo', 'Tillandsia usneoides', 1, 'Frecuente', 'Luz indirecta', 'Epífita (Cuelga de ramas)', 'Planta aérea que absorbe nutrientes de la humedad del aire.', 'img/Barba de viejo.webp'],
-        [19, 'Jiote', 'Bursera simaruba', 1, 'Muy Bajo', 'Sol directo', 'Suelo árido / pedregoso', 'Famoso por su corteza cobriza que se exfolia naturalmente.', 'img/jiote.jpg'],
-        [20, 'Tempisque', 'Sideroxylon capiri', 1, 'Bajo', 'Sol directo', 'Suelo franco', 'Árbol grande de madera resistente y frutos pequeños comestibles.', 'img/tempisque.jpg'],
-        [21, 'Bálsamo', 'Myroxylon balsamum', 1, 'Moderado', 'Sol directo', 'Suelo profundo y húmedo', 'Exclusivo y nativo de la Cordillera del Bálsamo en El Salvador.', 'img/balsamo.jpg'],
-        [22, 'Cafeto', 'Coffea arabica', 1, 'Abundante', 'Sombra parcial', 'Suelo volcánico rico', 'Prospera en los cordones cordilleranos de alta elevación.', 'img/cafe.jpg'],
-        [23, 'Cacao', 'Theobroma cacao', 1, 'Alto', 'Sombra parcial', 'Suelo arcilloso-arenoso', 'Cultivo ancestral mesoamericano usado para elaborar chocolate.', 'img/cacao.jpg'],
-        [24, 'Aguacate Criollo', 'Persea americana', 2, 'Moderado', 'Sol directo', 'Suelo profundo y drenado', 'Árbol frondoso tradicional de la zona occidental.', 'img/aguacate.jpg'],
-        [25, 'Cartucho', 'Zantedeschia aethiopica', 1, 'Abundante', 'Sombra parcial', 'Suelo muy húmedo', 'Muy cultivado en las zonas frescas y montañosas.', 'img/cartucho.jpg'],
-        [26, 'Hortensia', 'Hydrangea macrophylla', 2, 'Frecuente', 'Sombra parcial', 'Suelo ácido', 'Planta icónica de los climas fríos y neblinosos del occidente.', 'img/hortencia.webp'],
-        [27, 'Pino de Las Neblinas', 'Pinus oocarpa', 2, 'Moderado', 'Sol directo', 'Suelo ácido/volcánico', 'Árbol dominante en los pinares de alta montaña.', 'img/pino.jpg'],
-        [28, 'Zapote', 'Pouteria sapota', 2, 'Moderado', 'Sol directo', 'Suelo profundo y húmedo', 'Árbol frutal de gran tamaño con pulpa dulce y anaranjada.', 'img/zapote.jpg'],
-        [29, 'Pacaya', 'Chamaedorea tepejilote', 2, 'Abundante', 'Sombra densa', 'Suelo rico en humus', 'Palma del sotobosque cuya inflorescencia es consumida en la gastronomía.', 'img/pacaya.webp'],
-        [30, 'Arrayán', 'Psidium saratogense', 2, 'Moderado', 'Sol directo', 'Suelo volcánico', 'Arbusto de frutos ácidos aromatizados usados en refrescos y dulces.', 'img/arrayan.jpg'],
-        [31, 'Chipilín', 'Crotalaria longirostrata', 1, 'Moderado', 'Sol directo', 'Suelo fértil y bien drenado', 'Hierba nativa de uso culinario tradicional en sopas y tamales.', 'img/chipilin.jpg'],
-        [32, 'Buganvilla / Veranera', 'Bougainvillea spectabilis', 1, 'Moderado', 'Sol directo', 'Suelo bien drenado', 'Enredadera ornamental muy popular en jardines y vallas.', 'img/gubamvilias.jpg']
-    ];
-
-    foreach ($plantasBase as $p) {
-        $stmt = $conn->prepare("INSERT INTO `Planta` (id_planta, nombre_comun, nombre_cientifico, id_region, riego, luz, suelo, cuidados, imagen_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE nombre_comun = VALUES(nombre_comun), nombre_cientifico = VALUES(nombre_cientifico), id_region = VALUES(id_region), riego = VALUES(riego), luz = VALUES(luz), suelo = VALUES(suelo), cuidados = VALUES(cuidados), imagen_url = VALUES(imagen_url)");
-        if ($stmt) {
-            $stmt->bind_param("ississsss", $p[0], $p[1], $p[2], $p[3], $p[4], $p[5], $p[6], $p[7], $p[8]);
-            $stmt->execute();
-        }
-    }
-}
-
-asegurarPlantasBase($conn);
-
-// =========================================================================
-// OBTENER TODAS LAS PLANTAS
+// OBTENER TODAS LAS PLANTAS (Ya no se vuelven a insertar las base)
 // =========================================================================
 $query = "SELECT id_planta, nombre_comun, nombre_cientifico, id_region, riego, luz, suelo, cuidados, imagen_url,
           CASE id_region 
